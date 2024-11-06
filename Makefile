@@ -2,10 +2,7 @@
 
 PROJECTNAME = example
 
-MINGWPATH = /mingw64/bin
-CC = $(MINGWPATH)/gcc
-
-# CC = gcc
+CC = gcc
 
 CFLAGS = -Wall -ansi -pedantic -s
 INC = ./include
@@ -67,3 +64,4 @@ run:
 
 clean:
 	@$(RM) $(TARGET)
+	@$(RM) $(LIB)
