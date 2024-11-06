@@ -13,7 +13,7 @@ or
 ``` Shell
 ./example
 ```
-To build a cdbc library type:
+To build a cdbc library, type:
 ``` Shell
 make lib
 ```
