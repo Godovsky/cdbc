@@ -34,7 +34,7 @@ else
         EXT = 
         LIB = $(BIN)/libcdbc.so
         RM = rm -rfv
-        MKDIR = mkdir -fv
+        MKDIR = mkdir -v
         ECHO = echo
     endif
     ifeq ($(UNAME_S),Darwin)
