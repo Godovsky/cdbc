@@ -1,20 +1,22 @@
 .PHONY: all run lib
 
-PROJECTNAME = example
-
 CC = gcc
 
 CFLAGS = -Wall -ansi -pedantic -s
 INC = ./include
 INCLUDES = -I./$(INC)
 SRC = src
+BIN = bin
 CFILES = $(SRC)/cDBC.c
 HFILES = $(INC)/cDBC.h
 
 ifeq ($(OS),Windows_NT)
-	TARGET = $(PROJECTNAME).exe
-    LIB = libcdbc.dll
+	TARGETS = $(patsubst  examples/%.c,$(BIN)/%.exe,$(wildcard examples/*.c))
+    EXT = .exe
+    LIB = $(BIN)/libcdbc.dll
     RM = del
+    MKDIR = mkdir
+    ECHO = echo
     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
         
     else
@@ -28,9 +30,12 @@ ifeq ($(OS),Windows_NT)
 else
     UNAME_S := $(shell uname -s)
     ifeq ($(UNAME_S),Linux)
-        TARGET = $(PROJECTNAME)
-        LIB = libcdbc.so
-        RM = rm -fv
+        TARGETS = $(patsubst  examples/%.c,$(BIN)/%,$(wildcard examples/*.c))
+        EXT = 
+        LIB = $(BIN)/libcdbc.so
+        RM = rm -rfv
+        MKDIR = mkdir -fv
+        ECHO = echo
     endif
     ifeq ($(UNAME_S),Darwin)
         
@@ -47,21 +52,23 @@ else
     endif
 endif
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(SRC)/$(PROJECTNAME).c $(CFILES) $(HFILES)
+$(BIN)/%$(EXT): examples/%.c $(CFILES) $(HFILES) | $(BIN)
 	@echo "Building $(@F)"
 	@$(CC) $(CFLAGS) $(INCLUDES) $(CFILES) $< -o $@
 
+$(BIN):
+	@$(MKDIR) $(BIN)
+
 lib: $(LIB)
 
-$(LIB): $(SRC)/cDBC.c $(INC)/cDBC.h
+$(LIB): $(SRC)/cDBC.c $(INC)/cDBC.h | $(BIN)
 	@echo "Building $(@F)"
 	@$(CC) $(CFLAGS) -shared $(INCLUDES) $< -o $@
 
-run:
-	@./$(TARGET)
+%:
+	@./$(patsubst %,$(BIN)/%,$@)
 
 clean:
-	@$(RM) $(TARGET)
-	@$(RM) $(LIB)
+	@$(RM) $(BIN)

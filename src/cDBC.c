@@ -24,10 +24,12 @@ struct _S
     char            unit[32];
     char            receiver[32];
     S *             next;
+    S *             prev;
 };
 
 struct _M
 {
+    int             number_of_signals;
     unsigned int    message_id;
     char            message_name[128];
     unsigned char   message_size;
@@ -35,10 +37,12 @@ struct _M
     S *             Signals_begin;
     S *             Signals;
     M *             next;
+    M *             prev;
 };
 
 typedef struct _D
 {
+    int number_of_mesages;
     M * Messages_begin;
     M * Messages;
 } D;
@@ -159,7 +163,7 @@ static int cDBC_read_file (cDBC * p_cDBC, const char * path)
     M Mes_tmp = {0};
     S * Sig = NULL;
     S * Sig_head = NULL;
-    S Sig_tmp = {0};
+    S Sig_tmp;
 
     char tmp_str[128] = "";
     int sscanf_res = 0;
@@ -180,6 +184,8 @@ static int cDBC_read_file (cDBC * p_cDBC, const char * path)
         printf ("Unsuccessful file opening!\n");
         return -1;
     }
+
+    Tmp->number_of_mesages = 0;
 
     while (fgets (str, LINE_LENGHT, fp))
     {
@@ -207,9 +213,11 @@ static int cDBC_read_file (cDBC * p_cDBC, const char * path)
                     if (NULL == Mes_head) Mes_head = Mes;
                     memcpy (Mes, &Mes_tmp, sizeof (M));
                     Mes->next = Mes_head;
+                    Mes->prev = Mes_head;
                 }
                 else
                 {
+                    M * Mtmp = Mes;
                     Mes->next = malloc (sizeof (M));
                     Mes = Mes->next;
                     if (NULL == Mes)
@@ -221,8 +229,11 @@ static int cDBC_read_file (cDBC * p_cDBC, const char * path)
                     }
                     memcpy (Mes, &Mes_tmp, sizeof (M));
                     Mes->next = Mes_head;
+                    Mes->prev = Mtmp;
                     Mes->Signals = NULL;
                 }
+                Tmp->number_of_mesages++;
+                Mes->number_of_signals = 0;
 
                 Sig = NULL;
                 Sig_head = NULL;
@@ -260,9 +271,11 @@ static int cDBC_read_file (cDBC * p_cDBC, const char * path)
                                 if (NULL == Sig_head) Sig_head = Sig;
                                 memcpy (Sig, &Sig_tmp, sizeof (S));
                                 Sig->next = Sig_head;
+                                Sig->prev = Sig_head;
                             }
                             else
                             {
+                                S * Stmp = Sig;
                                 Sig->next = malloc (sizeof (S));
                                 Sig = Sig->next;
                                 if (NULL == Sig)
@@ -274,13 +287,17 @@ static int cDBC_read_file (cDBC * p_cDBC, const char * path)
                                 }
                                 memcpy (Sig, &Sig_tmp, sizeof (S));
                                 Sig->next = Sig_head;
+                                Sig->prev = Stmp;
                             }
+                            Mes->number_of_signals++;
+
                             memset (&Sig_tmp, 0, sizeof (S));
                         } else printf ("Signal syntax error (Message: %s)\n", Mes->message_name);
                     }
                     else break;
                 }
 
+                Sig_head->prev = Sig;
                 Mes->Signals_begin = Sig_head;
                 Mes->Signals = Sig_head;
             } else printf ("Message syntax error\n");
@@ -289,6 +306,7 @@ static int cDBC_read_file (cDBC * p_cDBC, const char * path)
 
     fclose (fp);
     
+    Mes_head->prev = Mes;
     Tmp->Messages_begin = Mes_head;
     Tmp->Messages = Mes_head;
 
@@ -388,6 +406,56 @@ static int cDBC_get_message_transmitter (cDBC * p_cDBC, const char * str)
     else if (NULL == Tmp->Messages) return -1;
 
     if (NULL == strcpy ((void *)str, Tmp->Messages->transmitter)) return -1;
+    
+    return 0;
+}
+
+static int cDBC_get_number_of_messages (cDBC * p_cDBC, int * number_of_messages)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    
+    *number_of_messages = Tmp->number_of_mesages;
+
+    return 0;
+}
+
+static int cDBC_next_message (cDBC * p_cDBC)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    else if (NULL == Tmp->Messages) return -1;
+    else if (NULL == Tmp->Messages->next) return -1;
+
+    Tmp->Messages = Tmp->Messages->next;
+    
+    return 0;
+}
+
+static int cDBC_previous_message (cDBC * p_cDBC)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    else if (NULL == Tmp->Messages) return -1;
+    else if (NULL == Tmp->Messages->prev) return -1;
+
+    Tmp->Messages = Tmp->Messages->prev;
+    
+    return 0;
+}
+
+static int cDBC_reset_message_position (cDBC * p_cDBC)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    else if (NULL == Tmp->Messages) return -1;
+    else if (NULL == Tmp->Messages_begin) return -1;
+
+    Tmp->Messages = Tmp->Messages_begin;
     
     return 0;
 }
@@ -570,6 +638,60 @@ static int cDBC_get_signal_receiver (cDBC * p_cDBC, const char * str)
     return 0;
 }
 
+static int cDBC_get_number_of_signals (cDBC * p_cDBC, int * number_of_signals)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    else if (NULL == Tmp->Messages) return -1;
+    
+    *number_of_signals = Tmp->Messages->number_of_signals;
+
+    return 0;
+}
+
+static int cDBC_next_signal (cDBC * p_cDBC)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    else if (NULL == Tmp->Messages) return -1;
+    else if (NULL == Tmp->Messages->Signals) return -1;
+    else if (NULL == Tmp->Messages->Signals->next) return -1;
+
+    Tmp->Messages->Signals = Tmp->Messages->Signals->next;
+    
+    return 0;
+}
+
+static int cDBC_previous_signal (cDBC * p_cDBC)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    else if (NULL == Tmp->Messages) return -1;
+    else if (NULL == Tmp->Messages->Signals) return -1;
+    else if (NULL == Tmp->Messages->Signals->prev) return -1;
+
+    Tmp->Messages->Signals = Tmp->Messages->Signals->prev;
+    
+    return 0;
+}
+
+static int cDBC_reset_signal_position (cDBC * p_cDBC)
+{
+    D * Tmp = (D *)p_cDBC;
+
+    if (NULL == Tmp) return -1;
+    else if (NULL == Tmp->Messages) return -1;
+    else if (NULL == Tmp->Messages->Signals) return -1;
+    else if (NULL == Tmp->Messages->Signals_begin) return -1;
+
+    Tmp->Messages->Signals = Tmp->Messages->Signals_begin;
+    
+    return 0;
+}
+
 int cDBC_operation (cDBC * p_cDBC, FUNCTION function, void * data)
 {
     int res = 0;
@@ -590,17 +712,29 @@ int cDBC_operation (cDBC * p_cDBC, FUNCTION function, void * data)
         case FIND_MESSAGE_BY_ID:
             res = cDBC_find_message_by_id (p_cDBC, *((const unsigned int *)data));
             break;
+        case GET_MESSAGE_NAME:
+            res = cDBC_get_message_name (p_cDBC, (const char *)data);
+            break;
+        case GET_MESSAGE_ID:
+            res = cDBC_get_message_id (p_cDBC, (int *)data);
+            break;
         case GET_MESSAGE_SIZE:
             res = cDBC_get_message_size (p_cDBC, (int *)data);
             break;
         case GET_MESSAGE_TRANSMITTER:
             res = cDBC_get_message_transmitter (p_cDBC, (const char *)data);
             break;
-        case GET_MESSAGE_NAME:
-            res = cDBC_get_message_name (p_cDBC, (const char *)data);
+        case GET_NUMBER_OF_MESSAGES:
+            res = cDBC_get_number_of_messages (p_cDBC, (int *)data);
             break;
-        case GET_MESSAGE_ID:
-            res = cDBC_get_message_id (p_cDBC, (int *)data);
+        case NEXT_MESSAGE:
+            res = cDBC_next_message (p_cDBC);
+            break;
+        case PREVIOUS_MESSAGE:
+            res = cDBC_previous_message (p_cDBC);
+            break;
+        case RESET_MESSAGE_POSITION:
+            res = cDBC_reset_message_position (p_cDBC);
             break;
         case FIND_SIGNAL_BY_NAME:
             res = cDBC_find_signal_by_name (p_cDBC, (const char *)data);
@@ -640,6 +774,18 @@ int cDBC_operation (cDBC * p_cDBC, FUNCTION function, void * data)
             break;
         case GET_SIGNAL_RECEIVER:
             res = cDBC_get_signal_receiver (p_cDBC, (const char *)data);
+            break;
+        case GET_NUMBER_OF_SIGNALS:
+            res = cDBC_get_number_of_signals (p_cDBC, (int *)data);
+            break;
+        case NEXT_SIGNAL:
+            res = cDBC_next_signal (p_cDBC);
+            break;
+        case PREVIOUS_SIGNAL:
+            res = cDBC_previous_signal (p_cDBC);
+            break;
+        case RESET_SIGNAL_POSITION:
+            res = cDBC_reset_signal_position (p_cDBC);
             break;
     }
 
@@ -682,6 +828,7 @@ void cDBC_Deinit (cDBC ** pp_cDBC)
 
         Tmp->Messages_begin = NULL;
         Tmp->Messages = NULL;
+        Tmp->number_of_mesages = 0;
 
         free (Tmp);
     }
