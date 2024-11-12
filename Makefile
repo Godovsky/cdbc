@@ -15,7 +15,7 @@ ifeq ($(OS),Windows_NT)
     EXT = .exe
     LIB = $(BIN)/libcdbc.dll
     RM = rd /s /q
-    MKDIR = mkdir
+    MKDIR = if not exist $@ md
     ECHO = echo
     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
         
@@ -59,7 +59,7 @@ $(BIN)/%$(EXT): examples/%.c $(CFILES) $(HFILES) | $(BIN)
 	@$(CC) $(CFLAGS) $(INCLUDES) $(CFILES) $< -o $@
 
 $(BIN):
-	@$(MKDIR) $(BIN)
+	@$(MKDIR) $@
 
 lib: $(LIB)
 
