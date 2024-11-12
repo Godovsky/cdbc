@@ -1,4 +1,4 @@
-.PHONY: all run lib
+.PHONY: all run-% lib
 
 CC = gcc
 
@@ -34,7 +34,7 @@ else
         EXT = 
         LIB = $(BIN)/libcdbc.so
         RM = rm -rfv
-        MKDIR = mkdir -v
+        MKDIR = mkdir -pv
         ECHO = echo
     endif
     ifeq ($(UNAME_S),Darwin)
@@ -67,8 +67,8 @@ $(LIB): $(SRC)/cDBC.c $(INC)/cDBC.h | $(BIN)
 	@echo "Building $(@F)"
 	@$(CC) $(CFLAGS) -shared $(INCLUDES) $< -o $@
 
-%:
-	@./$(patsubst %,$(BIN)/%,$@)
+run-%:
+	@./$(patsubst run-%,$(BIN)/%,$@)
 
 clean:
 	@$(RM) $(BIN)

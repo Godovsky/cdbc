@@ -7,11 +7,11 @@ make
 ```
 To start the program, type:
 ``` Shell
-make <program_name>
+make run-<program_name>
 ```
 or
 ``` Shell
-./examples/<program_name>
+./bin/<program_name>
 ```
 To build a cdbc library, type:
 ``` Shell
