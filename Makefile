@@ -14,7 +14,7 @@ ifeq ($(OS),Windows_NT)
 	TARGETS = $(patsubst  examples/%.c,$(BIN)/%.exe,$(wildcard examples/*.c))
     EXT = .exe
     LIB = $(BIN)/libcdbc.dll
-    RM = del
+    RM = rd /s /q
     MKDIR = mkdir
     ECHO = echo
     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
