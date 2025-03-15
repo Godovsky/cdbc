@@ -1,21 +1,23 @@
-.PHONY: all run-% lib
+.PHONY: all lib example clean
 
 CC = gcc
 
 CFLAGS = -Wall -ansi -pedantic -s
-INC = ./include
-INCLUDES = -I./$(INC)
-SRC = src
-BIN = bin
-CFILES = $(SRC)/cDBC.c
-HFILES = $(INC)/cDBC.h
+INCDIR = include
+INCLUDES = -I./$(INCDIR)
+SRCDIR = src
+BINDIR = bin
+CFILES = $(SRCDIR)/cDBC.c
+HFILES = $(INCDIR)/cDBC.h
+
+LIBNAME = cdbc
 
 ifeq ($(OS),Windows_NT)
-	TARGETS = $(patsubst  examples/%.c,$(BIN)/%.exe,$(wildcard examples/*.c))
+	TARGETS = $(patsubst  apps/%.c,$(BINDIR)/%.exe,$(wildcard apps/*.c))
     EXT = .exe
-    LIB = $(BIN)/libcdbc.dll
-    RM = if exist $(BIN) rd /s /q
-    MKDIR = if not exist $(BIN) md
+    LIBEXT = .dll
+    RM = if exist $(BINDIR) rd /s /q
+    MKDIR = if not exist $(BINDIR) md
     ECHO = echo
     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
         
@@ -30,15 +32,20 @@ ifeq ($(OS),Windows_NT)
 else
     UNAME_S := $(shell uname -s)
     ifeq ($(UNAME_S),Linux)
-        TARGETS = $(patsubst  examples/%.c,$(BIN)/%,$(wildcard examples/*.c))
+        TARGETS = $(patsubst  apps/%.c,$(BINDIR)/%,$(wildcard apps/*.c))
         EXT = 
-        LIB = $(BIN)/libcdbc.so
+        LIBEXT = .so
         RM = rm -rfv
         MKDIR = mkdir -pv
         ECHO = echo
     endif
     ifeq ($(UNAME_S),Darwin)
-        
+        TARGETS = $(patsubst  apps/%.c,$(BINDIR)/%,$(wildcard apps/*.c))
+        EXT = 
+        LIBEXT = .dylib
+        RM = rm -rfv
+        MKDIR = mkdir -pv
+        ECHO = echo
     endif
     UNAME_P := $(shell uname -p)
     ifeq ($(UNAME_P),x86_64)
@@ -52,23 +59,39 @@ else
     endif
 endif
 
-all: $(TARGETS)
+LIB = $(BINDIR)/lib$(LIBNAME)$(LIBEXT)
 
-$(BIN)/%$(EXT): examples/%.c $(CFILES) $(HFILES) | $(BIN)
+all:
+	@$(ECHO) "* make lib - to build $(patsubst $(BINDIR)/%,%,$(LIB))"
+	@$(ECHO) "* make apps - to build $(patsubst $(BINDIR)/%,%,$(LIB)) and $(patsubst $(BINDIR)/%,%,$(TARGETS))"
+	@$(ECHO) "* make $(patsubst $(BINDIR)/%$(EXT),run-%,$(TARGETS)) - to run one of the app"
+	@$(ECHO) "* make clean - to remove all the binaries"
+
+apps: $(LIB) $(TARGETS)
+
+$(BINDIR)/%$(EXT): apps/%.c $(CFILES) $(HFILES) | $(BINDIR)
 	@echo "Building $(@F)"
-	@$(CC) $(CFLAGS) $(INCLUDES) $(CFILES) $< -o $@
+ifeq ($(UNAME_S),Darwin)
+	@$(CC) $(CFLAGS) $(INCLUDES) $< -o $@ -Wl,-rpath,@loader_path -L./$(BINDIR) -l$(LIBNAME)
+else
+	@$(CC) $(CFLAGS) $(INCLUDES) $< -o $@ -Wl,-rpath=./$(BINDIR)/ -L./$(BINDIR) -l$(LIBNAME)
+endif
 
-$(BIN):
-	@$(MKDIR) $(BIN)
+$(BINDIR):
+	@$(MKDIR) $(BINDIR)
 
 lib: $(LIB)
 
-$(LIB): $(SRC)/cDBC.c $(INC)/cDBC.h | $(BIN)
+$(LIB): $(SRCDIR)/cDBC.c $(INCDIR)/cDBC.h | $(BINDIR)
 	@echo "Building $(@F)"
+ifeq ($(UNAME_S),Darwin)
+	@$(CC) $(CFLAGS) -dynamiclib $< -o $@
+else
 	@$(CC) $(CFLAGS) -shared $(INCLUDES) $< -o $@
+endif
 
 run-%:
-	@./$(patsubst run-%,$(BIN)/%,$@)
+	@./$(patsubst run-%,$(BINDIR)/%,$@) $(ARGS)
 
 clean:
-	@$(RM) $(BIN)
+	@$(RM) $(BINDIR)
